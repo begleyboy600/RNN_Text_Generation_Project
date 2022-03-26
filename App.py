@@ -86,7 +86,7 @@ You can tf.strings.reduce_join to join the characters back to strings
 
 
 def text_from_ids(ids):
-    return tf.strings.reduce_join(chars_from_ids(ids), axis=1)
+    return tf.strings.reduce_join(chars_from_ids(ids), axis=-1)
 
 
 """
@@ -110,6 +110,136 @@ sequence would be "Hell", and the target sequence "ello".
 To do this first use the tf.data.Dataset.from_tensor_slices function to convert the text vector into a stream of 
 character indices
 """
+
+all_ids = ids_from_chars(tf.strings.unicode_split(text, 'UTF-8'))
+print("---------------------------------------------------------")
+print(all_ids)
+
+ids_dataset = tf.data.Dataset.from_tensor_slices(all_ids)
+
+print("---------------------------------------------------------")
+for ids in ids_dataset.take(10):
+    print(chars_from_ids(ids).numpy().decode('utf-8'))
+
+seq_length = 100
+example_per_epoch = len(text)
+
+sequences = ids_dataset.batch(seq_length+1, drop_remainder=True)
+print("---------------------------------------------------------")
+for seq in sequences.take(1):
+    print(chars_from_ids(seq))
+
+"""
+Its easier to see what this is doing if you join the tokens back into strings
+"""
+
+print("---------------------------------------------------------")
+for seq in sequences.take(5):
+    print(text_from_ids(seq).numpy())
+
+"""
+For training you'll need a dataset of (input, label) pairs. Where input and label are sequences. At each time step input
+is the current character and the label is the next character.
+
+Here's a function that takes a sequence as input, duplicates, and shifts it to align the input and label for each 
+timestamp
+"""
+
+
+def split_input_target(sequence):
+    input_text = sequence[:-1]
+    target_text = sequence[1:]
+    return input_text, target_text
+
+
+print("---------------------------------------------------------")
+print(split_input_target(list("tensorflow")))
+
+dataset = sequences.map(split_input_target)
+
+print("---------------------------------------------------------")
+for input_example, target_example in dataset.take(1):
+    print("input: ", text_from_ids(input_example).numpy())
+    print("output: ", text_from_ids(target_example).numpy())
+
+"""
+Creating Training Batches
+
+You used tf.data to split the text into manageable sequences. But before feeding this data into the model, you need to 
+shuffle the data and pack it into batches
+"""
+
+# batch size
+BATCH_SIZE = 64
+
+# Buffer size to shuffle the dataset
+# (TF data is designed to work with possibly infinite sequences so it doesn't attempt to shuffle the entire sequence in
+# memory. Instead it maintains a buffer in which it shuffles elements)
+BUFFER_SIZE = 10000
+
+dataset = (dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
+print("---------------------------------------------------------")
+print(dataset)
+
+"""
+Build The Model
+This section defines the model as a keras.model subclass.
+
+This model has three layers:
+
+1. tf.keras.layers.Embedding: The input layer, a trainable lookup table that will map each character ID to a vector with
+embedding_dim dimensions
+
+2. tf.keras.layers.GRU: A type of RNN with size units=rnn_units
+
+3. tf.keras.layers.Dense: The output layer, with vocab_size outputs one logit for each character in the vocabulary. 
+These are the log-likelihood of each character according to the model
+"""
+
+# length of the vocabulary in chars
+vocab_size = len(vocab)
+
+# the embedding dimensions
+embedding_dim = 256
+
+# number of RNN units
+rnn_units = 1024
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
