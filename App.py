@@ -206,6 +206,76 @@ embedding_dim = 256
 rnn_units = 1024
 
 
+class MyModel(tf.keras.Model):
+    def __init__(self, vocab_size, embedding_dim, rnn_units):
+        super().__init__(self)
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        self.gru = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
+        self.dense = tf.keras.layers.Dense(vocab_size)
+
+    def call(self, inputs, states=None, return_state=False, training=False):
+        x = inputs
+        x = self.embedding(x, training=training)
+        if states is None:
+            states = self.gru.get_initial_state(x)
+        x, states = self.gru(x, initial_state=states, training=training)
+        x = self.dense(x, training=training)
+
+        if return_state:
+            return x, states
+        else:
+            return x
+
+
+# be sure the vocabulary size matches the StringLookup layers.
+model = MyModel(vocab_size=len(ids_from_chars.get_vocabulary()), embedding_dim=embedding_dim, rnn_units=rnn_units)
+
+"""
+For each character the model looks up the embedding, runs the GRU one time step with the embedding as input, and applies
+the dense layer to generate logits predicting the log likelihood of the next character
+
+Try The Model
+Now run the model to see that it behaves as expected
+
+First check the shape of the output
+"""
+
+print("---------------------------------------------------------")
+for input_example_batch, target_example_batch in dataset.take(1):
+    example_batch_predictions = model(input_example_batch)
+    print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+
+"""
+In the above output the sequence length of the input is 100 but the model can be ran on inputs of any length
+"""
+
+print("---------------------------------------------------------")
+# print(model.summary())
+
+"""
+To get actual predictions from the model you need to sample from the output distribution, to get actual character 
+indices. This distribution is defined by the logits over the character vocabulary
+
+The first example in the batch
+"""
+
+sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
+sampled_indices = tf.squeeze(sampled_indices, axis=1).numpy()
+print("---------------------------------------------------------")
+print(sampled_indices)
+
+"""
+Decode these to see the text predicted by this untrained model
+"""
+
+print("---------------------------------------------------------")
+print("input: \n", text_from_ids(input_example_batch[0]).numpy())
+print()
+print("next char prediction :\n", text_from_ids(sampled_indices).numpy())
+
+
+
+
 
 
 
