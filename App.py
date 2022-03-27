@@ -273,6 +273,60 @@ print("input: \n", text_from_ids(input_example_batch[0]).numpy())
 print()
 print("next char prediction :\n", text_from_ids(sampled_indices).numpy())
 
+"""
+Train The Model
+At this point the problem can be treated as a standard classification problem. Given the previous RNN state, and the 
+input this time step, predict the class of the next character
+
+Attach an optimizer, and a loss function
+The standard tf.keras.losses.sparse_categorical_crossentropy loss function works in this case because it is applied 
+across the last dimension of the prediction
+
+Because your model returns logits, you need to set the from_logits flag
+"""
+
+loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+example_batch_mean_loss = loss(target_example_batch, example_batch_predictions)
+print("---------------------------------------------------------")
+print("prediction shape: ", example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+print("mean loss: ", example_batch_mean_loss)
+
+"""
+A newly initialized model isn't too sure of itself, the output logits should all have similar magnitudes. To confirm
+this you can check that the exponential of the mean loss is approximately equal to the vocabulary size. A much higher 
+loss means the model is sure of its wrong answers, and is badly initialized
+"""
+
+print("---------------------------------------------------------")
+print(tf.exp(example_batch_mean_loss).numpy())
+
+"""
+Configure the training procedure using the tf.keras.Model.compile method. Use tf.keras.optimizers. Adam with default 
+arguments and the loss function
+"""
+
+model.compile(optimizer='adam', loss=loss)
+
+"""
+Configure Checkpoints
+Use a tf.keras.callbacks.ModelCheckpoint to ensure that checkpoints are saved during training
+"""
+
+# the directory where the checkpoints will be saved
+checkpoint_dir = './training_checkpoints'
+# name of the checkpoint files
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+
+checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True)
+
+"""
+Execute The Training 
+To keep training time reasonable, use 10 epochs to train the model. I set the runtime to GPU for faster training
+"""
+
+EPOCHS = 20
+#history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+
 
 
 
